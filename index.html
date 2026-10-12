@@ -422,7 +422,7 @@ html[data-theme="dark"] .demo-banner .txt b{color:#a58cff}
         <button class="btn btn-ghost" style="flex:1;min-width:110px;padding:12px;font-size:14px" onclick="ghDisconnect()">🔌 断开</button>
       </div>
       <div class="tip" style="margin-top:14px">
-        🔐 数据经 <b>GitHub Gist</b> 同步，Token 只保存在本机浏览器、不上传第三方。建议在 GitHub 创建<b>仅 gist 权限</b>的 Fine-grained Token。「上传」覆盖云端、「恢复」覆盖本地，请按需操作。
+        🔐 数据经 <b>GitHub Gist</b> 同步，Token 只保存在本机浏览器、不上传第三方。请在 GitHub 创建 <b>Classic Token</b> 并勾选 <b>gist</b> 权限（Fine-grained Token 不支持 Gist）。「上传」覆盖云端、「恢复」覆盖本地，请按需操作。
       </div>
     </div>
     <div class="tip">
@@ -481,7 +481,7 @@ html[data-theme="dark"] .demo-banner .txt b{color:#a58cff}
 
 <!-- 确认弹窗 -->
 <div class="overlay" id="cfOverlay" onclick="cfClose()"></div>
-<div class="sheet confirm-sheet" id="cfSheet" style="left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-46%) scale(.9);opacity:0;transition:all .28s cubic-bezier(.22,1,.36,1)">
+<div class="sheet confirm-sheet" id="cfSheet" style="left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-46%) scale(.9);opacity:0;visibility:hidden;pointer-events:none;transition:all .28s cubic-bezier(.22,1,.36,1)">
   <div class="ci" id="cfIcon">⚠️</div>
   <h3 id="cfTitle">确认操作</h3>
   <p id="cfText">确定要执行此操作吗？</p>
@@ -1029,11 +1029,13 @@ function cfShow(icon,title,text,cb){
   document.getElementById('cfOverlay').classList.add('show');
   const s = document.getElementById('cfSheet');
   s.classList.add('show'); s.style.transform='translate(-50%,-50%)'; s.style.opacity='1';
+  s.style.visibility='visible'; s.style.pointerEvents='auto';
 }
 function cfClose(){
   document.getElementById('cfOverlay').classList.remove('show');
   const s = document.getElementById('cfSheet');
   s.classList.remove('show'); s.style.transform='translate(-50%,-46%) scale(.9)'; s.style.opacity='0';
+  s.style.visibility='hidden'; s.style.pointerEvents='none';
 }
 document.getElementById('cfOk').onclick = ()=>{ if(cfCallback) cfCallback(); cfClose(); };
 
