@@ -7,7 +7,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="记账本">
 <title>✨ 我的记账本</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%237c5cf0'/><stop offset='1' stop-color='%234d8bff'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(%23g)'/><text x='32' y='45' font-size='40' text-anchor='middle' fill='%23fff' font-family='sans-serif' font-weight='bold'>¥</text></svg>">
 <style>
 /* ============ 主题变量 ============ */
 :root{
@@ -65,6 +64,10 @@ header{position:sticky;top:0;z-index:50;padding:14px 4px 10px;
 .month-btn{width:38px;height:38px;border-radius:12px;font-size:20px;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all .2s}
 .month-btn:active{transform:scale(.9);background:var(--input-bg)}
 .month-title{font-size:17px;font-weight:700;min-width:118px;text-align:center;letter-spacing:.5px}
+.month-btn:disabled{opacity:.25;cursor:default}
+.view-mode{display:flex;width:max-content;margin:10px auto 0;background:var(--card);border-radius:13px;padding:4px;gap:3px;box-shadow:var(--shadow-sm)}
+.view-mode button{padding:7px 20px;border-radius:10px;font-size:13px;font-weight:700;color:var(--muted);transition:all .2s}
+.view-mode button.on{background:linear-gradient(135deg,var(--brand1),var(--brand2));color:#fff;box-shadow:0 3px 10px rgba(104,92,240,.25)}
 .icon-btn{width:44px;height:44px;border-radius:14px;background:var(--card);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;font-size:20px;transition:all .2s}
 .icon-btn:active{transform:scale(.9)}
 
@@ -300,20 +303,24 @@ html[data-theme="dark"] .demo-banner .txt b{color:#a58cff}
   <header>
     <div class="header-row">
       <div class="month-picker">
-        <button class="month-btn" onclick="shiftMonth(-1)">‹</button>
-        <div class="month-title" id="monthTitle">2026年10月</div>
-        <button class="month-btn" onclick="shiftMonth(1)">›</button>
+        <button class="month-btn" id="prevMonthBtn" onclick="shiftMonth(-1)">‹</button>
+        <div class="month-title" id="monthTitle">全部账单</div>
+        <button class="month-btn" id="nextMonthBtn" onclick="shiftMonth(1)">›</button>
       </div>
       <button class="icon-btn" id="themeBtn" onclick="cycleTheme()">🌙</button>
+    </div>
+    <div class="view-mode" id="viewModeSeg">
+      <button data-mode="all" onclick="setViewMode('all')">全部流水</button>
+      <button data-mode="month" onclick="setViewMode('month')">按月查看</button>
     </div>
 
     <!-- 概览 -->
     <div class="hero">
-      <div class="hero-label">本月结余 · BALANCE</div>
+      <div class="hero-label" id="heroLabel">累计结余 · BALANCE</div>
       <div class="hero-amount"><span class="yen">¥</span><span id="balanceNum">0.00</span></div>
       <div class="hero-sub">
-        <div class="hero-chip"><span>本月收入</span><b id="incChip">¥ 0.00</b></div>
-        <div class="hero-chip"><span>本月支出</span><b id="expChip">¥ 0.00</b></div>
+        <div class="hero-chip"><span id="incLabel">累计收入</span><b id="incChip">¥ 0.00</b></div>
+        <div class="hero-chip"><span id="expLabel">累计支出</span><b id="expChip">¥ 0.00</b></div>
         <div class="hero-chip"><span>今日支出</span><b id="todayChip">¥ 0.00</b></div>
       </div>
       <div class="budget-wrap">
@@ -328,7 +335,7 @@ html[data-theme="dark"] .demo-banner .txt b{color:#a58cff}
   <!-- ============ 明细页 ============ -->
   <section class="page active" id="page-records">
     <div class="summary-bar">
-      <div class="stat-card"><div class="v" id="stCount">0</div><div class="k">本月笔数</div></div>
+      <div class="stat-card"><div class="v" id="stCount">0</div><div class="k" id="countLabel">全部笔数</div></div>
       <div class="stat-card"><div class="v" id="stAvg">¥0</div><div class="k">日均支出</div></div>
       <div class="stat-card"><div class="v" id="stMax">¥0</div><div class="k">单笔最大</div></div>
     </div>
@@ -349,7 +356,7 @@ html[data-theme="dark"] .demo-banner .txt b{color:#a58cff}
     </div>
     <div class="section-title"><span class="dot"></span>支出构成</div>
     <div class="card">
-      <h4>分类占比 <span class="hint">本月支出</span></h4>
+      <h4>分类占比 <span class="hint" id="donutHint">全部支出</span></h4>
       <div id="donutArea"></div>
     </div>
     <div class="section-title"><span class="dot"></span>分类排行</div>
@@ -423,11 +430,11 @@ html[data-theme="dark"] .demo-banner .txt b{color:#a58cff}
         <button class="btn btn-ghost" style="flex:1;min-width:110px;padding:12px;font-size:14px" onclick="ghDisconnect()">🔌 断开</button>
       </div>
       <div class="tip" style="margin-top:14px">
-        🔐 数据经 <b>GitHub Gist</b> 同步，Token 只保存在本机浏览器、不上传第三方。请在 GitHub 创建 <b>Classic Token</b> 并勾选 <b>gist</b> 权限（Fine-grained Token 不支持 Gist）。「上传」覆盖云端、「恢复」覆盖本地，请按需操作。
+        🔐 数据经 <b>GitHub Gist</b> 同步，Token 与 Gist ID 会立即保存在本机浏览器。配置一次后，每次数据变更都会<b>自动保存到云端</b>，无需重复填写或手动上传。请在 GitHub 创建 <b>Classic Token</b> 并勾选 <b>gist</b> 权限（Fine-grained Token 不支持 Gist）。手动「上传」会覆盖云端、「恢复」会覆盖本地，请谨慎操作。
       </div>
     </div>
     <div class="tip">
-      📱 <b>iPad 使用小贴士</b>：在 Safari 中打开本页面后，点击底部「分享」按钮 →「添加到主屏幕」，之后从主屏幕图标进入，即可获得全屏无浏览器栏的原生 App 体验。所有数据仅保存在本机浏览器中，不上传任何服务器，保护隐私。
+      📱 <b>iPad 使用小贴士</b>：在 Safari 中打开本页面后，点击底部「分享」按钮 →「添加到主屏幕」，之后从主屏幕图标进入，即可获得全屏无浏览器栏的原生 App 体验。账目始终先保存在本机浏览器；配置 GitHub 同步后，还会自动备份到你自己的私密 Gist。
     </div>
   </section>
 </div>
@@ -495,12 +502,15 @@ html[data-theme="dark"] .demo-banner .txt b{color:#a58cff}
 <script>
 'use strict';
 /* ================= 数据层 ================= */
-const LS = { rec:'ledger_records_v1', budget:'ledger_budget_v1', theme:'ledger_theme_v1', demo:'ledger_demo_v1' };
+const LS = { rec:'ledger_records_v1', budget:'ledger_budget_v1', theme:'ledger_theme_v1', demo:'ledger_demo_v1', view:'ledger_view_mode_v1' };
 let records = [];
 try{ records = JSON.parse(localStorage.getItem(LS.rec) || '[]'); }catch(e){ records = []; }
 let budget = parseFloat(localStorage.getItem(LS.budget) || '0') || 0;
 
-function saveRecs(){ localStorage.setItem(LS.rec, JSON.stringify(records)); }
+function saveRecs(sync=true){
+  localStorage.setItem(LS.rec, JSON.stringify(records));
+  if(sync) ghScheduleAutoSync();
+}
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function fmt(n){ return Number(n).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtShort(n){
@@ -533,6 +543,8 @@ function catOf(name, type){
 /* ================= 状态 ================= */
 const now = new Date();
 let viewYear = now.getFullYear(), viewMonth = now.getMonth();   // 0-based
+let viewMode = localStorage.getItem(LS.view) || 'all';           // 默认连续显示全部历史流水
+if(viewMode!=='all' && viewMode!=='month') viewMode = 'all';
 let curPage = 'records';
 
 /* ================= 主题 ================= */
@@ -657,9 +669,17 @@ function monthRecords(y,m){ return records.filter(r=>{ const [ry,rm]=r.date.spli
 function sum(list,type){ return list.filter(r=>r.type===type).reduce((s,r)=>s+Math.round(r.amount*100),0)/100; }
 
 function render(){
-  // 月份标题
-  document.getElementById('monthTitle').textContent = viewYear+'年'+(viewMonth+1)+'月';
-  const list = monthRecords(viewYear, viewMonth);
+  const isAll = viewMode==='all';
+  document.getElementById('monthTitle').textContent = isAll ? '全部账单' : viewYear+'年'+(viewMonth+1)+'月';
+  document.getElementById('prevMonthBtn').disabled = isAll;
+  document.getElementById('nextMonthBtn').disabled = isAll;
+  document.querySelectorAll('#viewModeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.mode===viewMode));
+  document.getElementById('heroLabel').textContent = isAll ? '累计结余 · BALANCE' : '本月结余 · BALANCE';
+  document.getElementById('incLabel').textContent = isAll ? '累计收入' : '本月收入';
+  document.getElementById('expLabel').textContent = isAll ? '累计支出' : '本月支出';
+  document.getElementById('countLabel').textContent = isAll ? '全部笔数' : '本月笔数';
+  document.getElementById('donutHint').textContent = isAll ? '全部支出' : '本月支出';
+  const list = isAll ? records.slice() : monthRecords(viewYear, viewMonth);
   const inc = sum(list,'income'), exp = sum(list,'expense'), bal = inc-exp;
   animateNum('balanceNum', bal);
   document.getElementById('incChip').textContent = '¥ '+fmt(inc);
@@ -669,7 +689,7 @@ function render(){
   document.getElementById('todayChip').textContent = '¥ '+fmt(todayExp);
 
   // 预算（未设置则整个隐藏）
-  document.querySelector('.budget-wrap').style.display = budget>0 ? 'block' : 'none';
+  document.querySelector('.budget-wrap').style.display = !isAll && budget>0 ? 'block' : 'none';
   const pct = budget>0 ? Math.min(exp/budget*100, 999) : 0;
   const fill = document.getElementById('budgetFill');
   fill.style.width = Math.min(pct,100)+'%';
@@ -703,7 +723,11 @@ function animateNum(id, target){
 function renderStats(list){
   const expList = list.filter(r=>r.type==='expense');
   document.getElementById('stCount').textContent = list.length;
-  const days = new Date(viewYear, viewMonth+1, 0).getDate();
+  let days = new Date(viewYear, viewMonth+1, 0).getDate();
+  if(viewMode==='all' && list.length){
+    const times = list.map(r=>new Date(r.date+'T00:00:00').getTime()).filter(Number.isFinite);
+    if(times.length) days = Math.max(1, Math.round((Math.max(...times)-Math.min(...times))/86400000)+1);
+  }
   document.getElementById('stAvg').textContent = '¥'+fmtShort(expList.reduce((s,r)=>s+r.amount,0)/days);
   const max = expList.reduce((m,r)=>Math.max(m,r.amount),0);
   document.getElementById('stMax').textContent = '¥'+fmtShort(max);
@@ -714,7 +738,7 @@ function renderRecordList(list){
   const box = document.getElementById('recordList');
   if(list.length===0){
     box.innerHTML = `<div class="empty">
-      <div class="big">🍃</div><h3>这个月还没有记录</h3>
+      <div class="big">🍃</div><h3>${viewMode==='all'?'还没有任何记录':'这个月还没有记录'}</h3>
       <p>点击右下角或底部的「＋」按钮<br>开始你的第一笔记账吧</p>
       <button class="btn btn-primary" onclick="openSheet()">＋ 记一笔</button>
     </div>`;
@@ -730,9 +754,12 @@ function renderRecordList(list){
     const di = sum(day,'income'), de = sum(day,'expense');
     const d = new Date(date+'T00:00:00');
     const isToday = date===todayStr();
+    const dateText = viewMode==='all'
+      ? date.slice(0,4)+'年'+Number(date.slice(5,7))+'月'+Number(date.slice(8,10))+'日'
+      : date.slice(5).replace('-','月')+'日';
     html += `<div class="day-group">
       <div class="day-head">
-        <b>${isToday?'今天':WEEK[d.getDay()]} · ${date.slice(5).replace('-','月')}日${isToday?' ('+date.slice(5)+')':''}</b>
+        <b>${isToday?'今天':WEEK[d.getDay()]} · ${dateText}${isToday?' ('+date+')':''}</b>
         <span>${di>0?'收 '+fmtShort(di)+(de>0?' · ':''):''}${de>0||di===0?'支 '+fmtShort(de):''}</span>
       </div>
       <div class="record-list">` +
@@ -784,7 +811,7 @@ function renderDonut(list){
   const expList = list.filter(r=>r.type==='expense');
   const total = expList.reduce((s,r)=>s+r.amount,0);
   if(total===0){
-    area.innerHTML = `<div class="empty" style="padding:26px"><div class="big" style="font-size:44px">🫧</div><p style="margin-top:10px">本月暂无支出数据</p></div>`;
+    area.innerHTML = `<div class="empty" style="padding:26px"><div class="big" style="font-size:44px">🫧</div><p style="margin-top:10px">${viewMode==='all'?'暂无支出数据':'本月暂无支出数据'}</p></div>`;
     return;
   }
   const byCat = {};
@@ -806,7 +833,7 @@ function renderDonut(list){
       <svg width="180" height="180" viewBox="0 0 180 180">
         <circle class="donut-ring-bg" cx="90" cy="90" r="${R}"/>${segs}
       </svg>
-      <div class="donut-center"><div class="t">本月支出</div><div class="v">¥${fmtShort(total)}</div></div>
+      <div class="donut-center"><div class="t">${viewMode==='all'?'累计支出':'本月支出'}</div><div class="v">¥${fmtShort(total)}</div></div>
     </div>
     <div class="donut-legend">` +
     sorted.slice(0,7).map(s=>
@@ -845,7 +872,13 @@ function switchTab(p){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.page===p));
   window.scrollTo({top:0, behavior:'smooth'});
 }
+function setViewMode(mode){
+  viewMode = mode==='month' ? 'month' : 'all';
+  localStorage.setItem(LS.view, viewMode);
+  render();
+}
 function shiftMonth(d){
+  if(viewMode!=='month') return;
   const m = new Date(viewYear, viewMonth+d, 1);
   viewYear = m.getFullYear(); viewMonth = m.getMonth(); render();
 }
@@ -856,6 +889,7 @@ function saveBudget(){
   const v = raw==='' ? 0 : parseFloat(raw);
   if(isNaN(v) || v<0){ toast('⚠️ 请输入有效金额'); return; }
   budget = v; localStorage.setItem(LS.budget, String(v));
+  ghScheduleAutoSync();
   toast(v>0 ? '🎯 预算已保存' : '✅ 预算已关闭'); render();
 }
 
@@ -922,7 +956,8 @@ function importJSON(input){
 
 /* ================= GitHub 云端同步 ================= */
 const GH_API = 'https://api.github.com';
-const LSGH = { token:'ledger_gh_token_v1', gist:'ledger_gh_gist_v1' };
+const LSGH = { token:'ledger_gh_token_v1', gist:'ledger_gh_gist_v1', dirty:'ledger_gh_dirty_v1' };
+let ghAutoTimer = null, ghSyncing = false, ghSyncQueued = false, ghLastAutoError = '';
 
 function ghState(){
   const token = document.getElementById('ghToken').value.trim() || localStorage.getItem(LSGH.token) || '';
@@ -935,9 +970,25 @@ function ghSetStatus(icon, text){
 }
 function ghRefreshStatus(){
   const {token, gist} = ghState();
-  if(token && gist) ghSetStatus('🟢', '已连接 · Gist '+gist.slice(0,8)+'…');
-  else if(token) ghSetStatus('🟡', '已填 Token，尚未创建 Gist');
+  if(token && gist) ghSetStatus('🟢', '自动同步已开启 · Gist '+gist.slice(0,8)+'…');
+  else if(token) ghSetStatus('🟡', 'Token 已保存 · 首次同步时自动创建 Gist');
   else ghSetStatus('⚪', '未配置');
+}
+function ghSaveConfig(sync=false){
+  const token = document.getElementById('ghToken').value.trim();
+  const gist = document.getElementById('ghGist').value.trim();
+  if(token) localStorage.setItem(LSGH.token, token); else localStorage.removeItem(LSGH.token);
+  if(gist) localStorage.setItem(LSGH.gist, gist); else localStorage.removeItem(LSGH.gist);
+  ghRefreshStatus();
+  if(sync && token) ghScheduleAutoSync();
+}
+function ghScheduleAutoSync(){
+  const {token} = ghState();
+  if(!token) return;
+  localStorage.setItem(LSGH.dirty, '1');
+  clearTimeout(ghAutoTimer);
+  ghSetStatus('🟡', '有更改待自动保存…');
+  ghAutoTimer = setTimeout(()=>ghPush({auto:true}), 1200);
 }
 function ghHeaders(token){
   return {
@@ -966,11 +1017,20 @@ async function ghRequest(url, options){
   return data;
 }
 
-async function ghPush(){
+async function ghPush(options={}){
+  const auto = options.auto===true;
   const {token, gist} = ghState();
-  if(!token){ toast('⚠️ 请先填写 GitHub Token'); return; }
-  if(records.length===0){ toast('⚠️ 还没有记录可以上传'); return; }
-  ghSetStatus('🔄', '正在上传…');
+  if(!token){ if(!auto) toast('⚠️ 请先填写 GitHub Token'); return; }
+  if(ghSyncing){
+    ghSyncQueued = true;
+    if(!auto) toast('🔄 正在同步，本次更改会接着保存');
+    return;
+  }
+  clearTimeout(ghAutoTimer);
+  ghAutoTimer = null;
+  ghSyncing = true;
+  ghLastAutoError = '';
+  ghSetStatus('🔄', auto ? '正在自动保存到云端…' : '正在上传…');
   try{
     const headers = ghHeaders(token);
     if(gist){
@@ -983,15 +1043,26 @@ async function ghPush(){
         method:'POST', headers,
         body: JSON.stringify({ description:'我的记账本 · 自动同步', public:false, files:{ 'ledger.json': { content: ghPayload() } } })
       });
-      document.getElementById('ghGist').value = data.id;
-      localStorage.setItem(LSGH.gist, data.id);
+      if(document.getElementById('ghToken').value.trim()===token){
+        document.getElementById('ghGist').value = data.id;
+        localStorage.setItem(LSGH.gist, data.id);
+      }
     }
-    localStorage.setItem(LSGH.token, token);
-    ghRefreshStatus();
-    toast('☁️ 已上传到云端');
+    if(document.getElementById('ghToken').value.trim()===token) localStorage.setItem(LSGH.token, token);
+    localStorage.removeItem(LSGH.dirty);
+    const time = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    ghSetStatus('🟢', (auto?'已自动保存':'已上传到云端')+' · '+time);
+    if(!auto) toast('☁️ 已上传到云端');
   }catch(e){
-    ghRefreshStatus();
-    toast('⚠️ 上传失败：'+e.message);
+    ghSetStatus('🔴', (auto?'自动保存失败':'上传失败')+' · 联网后可重试');
+    if(!auto || ghLastAutoError!==e.message) toast('⚠️ '+(auto?'自动保存':'上传')+'失败：'+e.message);
+    ghLastAutoError = e.message;
+  }finally{
+    ghSyncing = false;
+    if(ghSyncQueued){
+      ghSyncQueued = false;
+      ghScheduleAutoSync();
+    }
   }
 }
 
@@ -1009,14 +1080,18 @@ async function ghPull(){
     try{ parsed = JSON.parse(file.content); }catch(e){ throw new Error('云端数据格式不正确'); }
     if(!Array.isArray(parsed.records)) throw new Error('云端数据格式不正确');
     localStorage.setItem(LSGH.token, token);
+    localStorage.setItem(LSGH.gist, gist);
     ghRefreshStatus();
     cfShow('☁️','从云端恢复？','将用云端数据覆盖本机当前 '+records.length+' 条记录（云端 '+parsed.records.length+' 条）。此操作不可撤销。', ()=>{
       records = parsed.records;
       budget = parsed.budget || 0;
-      saveRecs(); localStorage.setItem(LS.budget, String(budget));
+      clearTimeout(ghAutoTimer); ghAutoTimer = null; ghSyncQueued = false;
+      localStorage.removeItem(LSGH.dirty);
+      saveRecs(false); localStorage.setItem(LS.budget, String(budget));
       document.getElementById('budgetInput').value = budget||'';
       const d = new Date(); viewYear=d.getFullYear(); viewMonth=d.getMonth();
       render();
+      ghSetStatus('🟢', '已从云端恢复 · 自动同步已开启');
       toast('☁️ 已从云端恢复 '+records.length+' 条记录');
     });
   }catch(e){
@@ -1027,8 +1102,10 @@ async function ghPull(){
 
 function ghDisconnect(){
   cfShow('🔌','断开云端同步？','将清除本机保存的 GitHub Token 与 Gist 配置（云端数据不会删除）。', ()=>{
+    clearTimeout(ghAutoTimer); ghSyncQueued = false;
     localStorage.removeItem(LSGH.token);
     localStorage.removeItem(LSGH.gist);
+    localStorage.removeItem(LSGH.dirty);
     document.getElementById('ghToken').value='';
     document.getElementById('ghGist').value='';
     ghRefreshStatus();
@@ -1043,6 +1120,7 @@ function confirmClear(){
     records = []; budget = 0;
     localStorage.removeItem(LS.rec); localStorage.removeItem(LS.budget);
     document.getElementById('budgetInput').value='';
+    ghScheduleAutoSync();
     render(); toast('🧹 已清空所有数据');
   });
 }
@@ -1095,6 +1173,7 @@ function clearDemo(){
   cfShow('🧹','清除演示数据？','将删除当前全部 '+records.length+' 条记录（含演示数据），恢复为空白账本。',()=>{
     records = [];
     localStorage.removeItem(LS.rec); localStorage.removeItem(LS.demo);
+    ghScheduleAutoSync();
     render(); toast('🧹 已恢复空白账本，开始记你的账吧！');
   });
 }
@@ -1171,9 +1250,21 @@ function loadDemo(manual){
   document.getElementById('dateInput').value = todayStr();
   document.getElementById('ghToken').value = localStorage.getItem(LSGH.token) || '';
   document.getElementById('ghGist').value = localStorage.getItem(LSGH.gist) || '';
+  ['ghToken','ghGist'].forEach(id=>{
+    const el = document.getElementById(id);
+    el.addEventListener('input', ()=>ghSaveConfig(false));
+    el.addEventListener('change', ()=>ghSaveConfig(true));
+  });
+  window.addEventListener('online', ()=>{
+    if(localStorage.getItem(LSGH.dirty) && ghState().token) ghScheduleAutoSync();
+  });
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='hidden' && ghAutoTimer && ghState().token) ghPush({auto:true});
+  });
   ghRefreshStatus();
   const d = new Date(); viewYear=d.getFullYear(); viewMonth=d.getMonth();
   render();
+  if(localStorage.getItem(LSGH.dirty) && ghState().token) ghScheduleAutoSync();
 })();
 </script>
 </body>
